@@ -1,91 +1,110 @@
-import numpy as np
 import pygame
 import math
+import numpy as np
+import time
 
-# Simulation parameters
+# Pygame Setup
+pygame.init()
+WIDTH, HEIGHT = 800, 800
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("3D Wave Propagation Simulator with Learning")
+clock = pygame.time.Clock()
+
+# Physical Constants
 GRID_SIZE = 18
 SPACING = 30
-CLOCK_TICK = 15
+FOV = 600
 DEFAULT_FREQS = [0, 0, 0]
 
-def text_to_frequencies(text):
-    """Convert a string into a list of frequency values."""
-    return [ord(char) % 10 + 1 for char in text]  # Simple ASCII-based mapping
+# Camera Position
+camera_x, camera_y, camera_z = 0, 0, -500
+camera_angle_x, camera_angle_y = 0, 0
 
-def get_wave_intensity(x, y, z, sim_time, frequencies):
-    """Compute wave response to input frequencies"""
-    intensity = 0
-    for i, freq in enumerate(frequencies):
-        distance = math.sqrt(x**2 + y**2 + z**2)
-        wave = np.sin(2 * np.pi * freq * (sim_time - distance / (1 + freq * 0.01)))
-        intensity += wave * (0.9 ** i)  # Add decay to spread learning effect
-    return intensity
+# Learning Model Data
+training_data = {"hello": "how are you"}  # Simple memory for learning
+wave_memory = np.zeros((GRID_SIZE, GRID_SIZE, GRID_SIZE))
 
-def capture_state():
-    """Save the system state as an array of wave intensities."""
-    state_matrix = np.zeros((GRID_SIZE, GRID_SIZE, GRID_SIZE))
-    for x in range(GRID_SIZE):
-        for y in range(GRID_SIZE):
-            for z in range(GRID_SIZE):
-                state_matrix[x, y, z] = get_wave_intensity(x, y, z, 0, DEFAULT_FREQS)
-    return state_matrix
+# 3D Points for Cube
+cube_points = []
+for x in range(GRID_SIZE):
+    for y in range(GRID_SIZE):
+        for z in range(GRID_SIZE):
+            cube_points.append(((x - GRID_SIZE // 2) * SPACING, 
+                                (y - GRID_SIZE // 2) * SPACING, 
+                                (z - GRID_SIZE // 2) * SPACING))
 
-def compute_loss(predicted_state, target_state):
-    """Calculate error between actual wave state and expected output."""
-    return np.mean((predicted_state - target_state) ** 2)  # Mean Squared Error (MSE)
+def project_3d_to_2d(x, y, z):
+    scale = FOV / (FOV + z - camera_z)
+    px = int(WIDTH // 2 + (x - camera_x) * scale)
+    py = int(HEIGHT // 2 - (y - camera_y) * scale)
+    return px, py
 
-def train_network(input_text, target_text, epochs=100):
-    """Train the wave system to respond to an input correctly."""
-    global DEFAULT_FREQS
-    input_frequencies = text_to_frequencies(input_text)
-    target_frequencies = text_to_frequencies(target_text)
+def get_wave_intensity(x, y, z, sim_time):
+    return wave_memory[x % GRID_SIZE, y % GRID_SIZE, z % GRID_SIZE] * np.sin(2 * np.pi * sim_time)
 
-    for epoch in range(epochs):
-        DEFAULT_FREQS = input_frequencies  # Set initial state
-        predicted_state = capture_state()
-        
-        # Simulate expected output state
-        DEFAULT_FREQS = target_frequencies
-        target_state = capture_state()
+def update_waves(input_text):
+    if input_text in training_data:
+        response = training_data[input_text]
+        print("Response:", response)
+        # Encode response into the wave system
+        for x in range(GRID_SIZE):
+            for y in range(GRID_SIZE):
+                for z in range(GRID_SIZE):
+                    wave_memory[x, y, z] = np.random.uniform(-1, 1) if response else 0
+    else:
+        print("I don't know that yet.")
+        training_data[input_text] = "?"  # Placeholder for learning
 
-        # Compute loss
-        loss = compute_loss(predicted_state, target_state)
-        print(f"Epoch {epoch + 1}, Loss: {loss}")
+running = True
+in_input_mode = False
+user_input = ""
+sim_time = 0
+while running:
+    clock.tick(60)
+    screen.fill((0, 0, 0))
 
-        # Adjust frequencies to minimize error
-        DEFAULT_FREQS = [f - 0.01 * loss for f in DEFAULT_FREQS]  # Learning step
-
-def wave_to_text(wave_state):
-    """Convert final wave intensities back into text."""
-    char_list = [chr(int(abs(val) * 10) % 128) for val in wave_state.flatten()[:15]]
-    return "".join(char_list)
-
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((600, 600))
-    clock = pygame.time.Clock()
-    sim_time = 0
-    running = True
-    
-    # Training the network
-    train_network("hello how are you", "I am fine", epochs=50)
-    
-    while running:
-        screen.fill((0, 0, 0))
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKQUOTE:
+                in_input_mode = True
+                user_input = ""
+            elif in_input_mode:
                 if event.key == pygame.K_RETURN:
-                    response_wave = capture_state()
-                    ai_response = wave_to_text(response_wave)
-                    print(f"AI Response: {ai_response}")
-        
-        pygame.display.flip()
-        sim_time += 0.1
-        clock.tick(CLOCK_TICK)
-    
-    pygame.quit()
+                    update_waves(user_input)
+                    in_input_mode = False
+                elif event.key == pygame.K_BACKSPACE:
+                    user_input = user_input[:-1]
+                else:
+                    user_input += event.unicode
 
-if __name__ == "__main__":
-    main()
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]: camera_angle_y -= 0.05
+    if keys[pygame.K_RIGHT]: camera_angle_y += 0.05
+    if keys[pygame.K_UP]: camera_angle_x -= 0.05
+    if keys[pygame.K_DOWN]: camera_angle_x += 0.05
+    if keys[pygame.K_w]: camera_z += 20
+    if keys[pygame.K_s]: camera_z -= 20
+    if keys[pygame.K_a]: camera_x -= 20
+    if keys[pygame.K_d]: camera_x += 20
+
+    sim_time += 0.02
+
+    for point in cube_points:
+        x, y, z = point
+        px, py = project_3d_to_2d(x, y, z)
+        wave_intensity = get_wave_intensity(x, y, z, sim_time)
+        brightness = int(127 + 128 * wave_intensity)
+        brightness = max(0, min(255, brightness))
+        color = (brightness, brightness, 255)
+        pygame.draw.circle(screen, color, (px, py), 3)
+
+    if in_input_mode:
+        font = pygame.font.SysFont('Arial', 24)
+        input_text = font.render(f"Enter text: {user_input}", True, (255, 255, 255))
+        screen.blit(input_text, (10, HEIGHT - 40))
+
+    pygame.display.flip()
+
+pygame.quit()
