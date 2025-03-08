@@ -12,7 +12,8 @@
     </div>
         <div class = "w3-bottom">
             <form action="#">
-                <input type = "button" id= "btn" value = "Send now!">
+                <input type= "text" id = "userprompt" placeholder= "Ask the matrix a question today!">
+                <input type = "submit" id= "btn" value = "Send now!">
                 <div id= "result"></div>
             </form>
 </div>
