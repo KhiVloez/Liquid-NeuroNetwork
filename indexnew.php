@@ -8,7 +8,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $url = "http://127.0.0.1:5000/regbutton"; // Flask API URL
 
     // Retrieve JSON input from JavaScript fetch request
-    $json_data = file_get_contents("php://input"); 
+    $json_data = file_get_contents("php://input");
 
     // Debugging: Log the received JSON
     file_put_contents("debug_log.txt", "Received JSON: " . $json_data . "\n", FILE_APPEND);
@@ -42,52 +42,94 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <title>The Matrix Connection</title>
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        .container {
+            width: 50%;
+            margin: auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            color: black; /* Ensures text is visible */
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 15px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 
 <body>
 
-    <div class="w3-center w3-top">
+    <div class="container">
         <h1>The Matrix Connection</h1>
-    </div>
-
-    <div class="w3-container w3-center">
         <form id="matrixForm">
-            <input type="text" id="userprompt" placeholder="Ask the Matrix a question today!" class="w3-input w3-border">
-            <button type="submit" id="btn" class="w3-button w3-green w3-margin-top">Send now!</button>
-            <div id="result" class="w3-panel w3-light-gray w3-padding w3-margin-top"></div>
+            <input type="text" id="userprompt" name="userprompt" placeholder="Ask the Matrix a question today!" required>
+            <button type="submit" id="btn">Send now!</button>
+            <div id="result"></div>
         </form>
     </div>
 
     <script>
-        document.getElementById("matrixForm").addEventListener("submit", function(event) {
-            event.preventDefault(); // ✅ Prevents page refresh
+        document.addEventListener("DOMContentLoaded", function() {
+            console.log("Page loaded, JavaScript active."); // Debugging
 
-            // Get value from text input
-            const userInput = document.getElementById("userprompt").value.trim(); // ✅ Ensures no blank spaces
+            document.getElementById("matrixForm").addEventListener("submit", function(event) {
+                event.preventDefault(); // ✅ Prevents page refresh
 
-            // Debugging: Print user input before sending
-            console.log("User Input:", userInput);
+                // Get value from text input
+                const userInput = document.getElementById("userprompt").value.trim(); // ✅ Ensures no blank spaces
 
-            // Ensure user input is not empty
-            if (!userInput) {
-                document.getElementById("result").innerText = "Please enter a question!";
-                return;
-            }
+                // Debugging: Print user input before sending
+                console.log("User Input:", userInput);
 
-            // Send user input to PHP, which then forwards it to Flask
-            fetch("index.php", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ input_data: userInput }) // ✅ Flask expects "input_data"
-            })
-            .then(response => response.json()) // ✅ Convert response to JSON
-            .then(data => {
-                console.log("Success:", data); // ✅ Log API response
-                document.getElementById("result").innerText = data.message || data.error; // ✅ Display response
-            })
-            .catch(error => console.error("Error:", error));
+                // Ensure user input is not empty
+                if (!userInput) {
+                    document.getElementById("result").innerText = "Please enter a question!";
+                    return;
+                }
+
+                // Send user input to PHP, which then forwards it to Flask
+                fetch("indexnew.php", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ input_data: userInput }) // ✅ Flask expects "input_data"
+                })
+                .then(response => response.json()) // ✅ Convert response to JSON
+                .then(data => {
+                    console.log("Success:", data); // ✅ Log API response
+                    document.getElementById("result").innerText = data.message || data.error; // ✅ Display response
+                })
+                .catch(error => console.error("Error:", error));
+            });
         });
     </script>
 
